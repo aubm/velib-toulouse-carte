@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Velib Toulouse Carte</title>
+    <link rel="stylesheet" href="https://openlayers.org/en/v4.6.5/css/ol.css" type="text/css">
+    <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+    <script src="https://openlayers.org/en/v4.6.5/build/ol.js"></script>
+    <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    .map {
+      height: 100%;
+    }
+    .current-position {
+      top: 80px;
+      left: .5em;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <script>
+    (function() {
+        var green = "#27ae60";
+        var yellow = "#f1c40f";
+        var orange = "#e67e22";
+        var red = "#c0392b";
+
+        var styleFunction = function(feature) {
+            var view = map.getView();
+            var props = feature.getProperties();
+            var availableBikes = props.availableBikes;
+            var bikeStands = props.bikeStands;
+            var percentAvailable = (availableBikes / bikeStands) * 100
+
+            var color = green;
+            if (percentAvailable < 50) {
+                color = yellow;
+            }
+            if (percentAvailable < 20) {
+                color = orange;
+            }
+            if (percentAvailable == 0) {
+                color = red;
+            }
+
+            var text = null;
+            var radius = 8;
+            var zoomLevel = view.getZoom();
+
+            if (zoomLevel > 13) {
+                radius = 15;
+                var textContent = "" + availableBikes;
+                var scale = 1;
+                if (zoomLevel > 14) {
+                    radius = 20;
+                    textContent = availableBikes + "/" + bikeStands;
+                    scale = 1.15;
+                }
+                text = new ol.style.Text({
+                    text: textContent,
+                    scale: scale,
+                    fill: new ol.style.Fill({
+                        color: '#fff'
+                    })
+                });
+            }
+
+            return new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: radius,
+                    fill: new ol.style.Fill({
+                        color: color
+                    })
+                }),
+                text: text
+            });
+        };
+
+        var vectorSource = new ol.source.Vector({
+            format: new ol.format.GeoJSON()
+        })
+
+        var refreshData = function() {
+          var url = 'https://api-dot-velo-toulouse-carte.appspot.com/api/v1/stations';
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', url);
+          var onError = function() {}
+          xhr.onerror = onError;
+          xhr.onload = function() {
+              if (xhr.status == 200) {
+                  var features = vectorSource.getFormat().readFeatures(xhr.responseText, { featureProjection: 'EPSG:3857' });
+                  vectorSource.clear();
+                  vectorSource.addFeatures(features);
+              } else {
+                  onError();
+              }
+          }
+          xhr.send();
+        }
+        refreshData();
+        window.setInterval(refreshData, 300000); // 5 minutes
+
+        var vectorLayer = new ol.layer.Vector({
+            source: vectorSource,
+            style: styleFunction
+        });
+
+        var map = new ol.Map({
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.OSM()
+                }),
+                vectorLayer
+            ],
+            target: 'map',
+            controls: ol.control.defaults({
+                attributionOptions: {
+                    collapsible: false
+                }
+            }),
+            view: new ol.View({
+                center: ol.proj.transform([1.4436990022659302, 43.60442501626192], 'EPSG:4326', 'EPSG:3857'),
+                zoom: 16
+            })
+        });
+
+        if (!"geolocation" in navigator) {
+            return;
+        }
+
+        var button = document.createElement('button');
+        button.innerHTML = '&#8982;';
+        button.addEventListener('click', function(e) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                var view = map.getView();
+                view.setCenter(ol.proj.transform([position.coords.longitude, position.coords.latitude], 'EPSG:4326', 'EPSG:3857'));
+                view.setZoom(15);
+            });
+        }, false);
+
+        var element = document.createElement('div');
+        element.className = 'current-position ol-unselectable ol-control';
+        element.appendChild(button);
+
+        var RotateNorthControl = new ol.control.Control({
+            element: element
+        });
+        map.addControl(RotateNorthControl);
+    })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+runtime: go
+api_version: go1
+service: default
+
+handlers:
+- url: /?
+  static_files: statics/index.html
+  upload: statics/index\.html
+- url: /
+  static_dir: statics

@@ -1,0 +1,10 @@
+runtime: go
+api_version: go1
+service: api
+
+handlers:
+- url: /.*
+  script: _go_app
+
+env_variables:
+  VELIB_TOULOUSE_CARTE_JCDECAUX_API_KEY: 'xxx'
