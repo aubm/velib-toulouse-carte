@@ -8,12 +8,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-
-	apphttp "github.com/aubm/velib-toulouse-carte/backend/http"
+	"time"
 
 	"github.com/aubm/velib-toulouse-carte/backend/shared"
 	"github.com/pkg/errors"
-	"time"
 )
 
 const (
@@ -25,8 +23,7 @@ type StationsManager interface {
 }
 
 type DefaultStationsManager struct {
-	Config     *shared.AppConfig      `inject:""`
-	HttpClient apphttp.ClientProvider `inject:""`
+	Config *shared.AppConfig `inject:""`
 }
 
 func (m *DefaultStationsManager) Search(ctx context.Context, opts StationsSearchOptions) ([]Station, error) {
@@ -83,14 +80,13 @@ func (m *DefaultStationsManager) callEndpoint(ctx context.Context, httpMethod st
 }
 
 func (m *DefaultStationsManager) performRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
-	httpClient := m.HttpClient.Provide(ctx, apphttp.ClientOptions{})
-	resp, err := httpClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to perform http request")
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return resp, errors.Wrapf(apphttp.ErrUnexpectedStatusCode, "got http status code %v", resp.StatusCode)
+		return resp, errors.Errorf("http error code %v", resp.StatusCode)
 	}
 
 	return resp, nil

@@ -1,29 +1,26 @@
 package api
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/aubm/velib-toulouse-carte/backend/bikes"
-	"github.com/aubm/velib-toulouse-carte/backend/log"
 	"github.com/paulmach/go.geojson"
-	"google.golang.org/appengine"
 )
 
 type StationsHandlers struct {
 	Stations bikes.StationsManager `inject:""`
-	Logger   log.Logger            `inject:""`
 }
 
 func (h *StationsHandlers) List(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
+	ctx := r.Context()
 
 	stations, err := h.Stations.Search(ctx, bikes.StationsSearchOptions{
 		ContractName: "Toulouse",
 	})
 	if err != nil {
 		httpError(w, serverError, http.StatusInternalServerError)
-		h.Logger.Error(ctx, fmt.Sprintf("failed to search stations: %v", err.Error()))
+		log.Printf("failed to search stations: %v", err)
 		return
 	}
 
